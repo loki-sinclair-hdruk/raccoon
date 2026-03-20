@@ -37,8 +37,14 @@ export interface ScanContext {
   projectRoot: string;
   /** Detected stacks for this project. */
   stacks: Stack[];
-  /** Raw file contents cache — populated lazily by the scanner. */
+  /** Raw file contents cache — populated lazily by checks / readSanitizedFile. */
   fileCache: Map<string, string>;
+  /**
+   * Sanitized file contents cache — comments and string literals replaced with
+   * spaces. Populated lazily by readSanitizedFile(). Use for pattern matching;
+   * use fileCache for snippet display so line numbers stay correct.
+   */
+  sanitizedFileCache: Map<string, string>;
   /** Resolved list of all project file paths (relative to projectRoot). */
   files: string[];
   /** Optional config loaded from .racoon.json in the project root. */
@@ -136,6 +142,61 @@ export interface ScanReport {
   /** Top findings that are holding the score back. */
   weaknesses: Array<{ check: Check; finding: Finding; dimension: Dimension }>;
   durationMs: number;
+  /** Populated when a .racoon-baseline.json exists from a previous scan. */
+  delta?: ScanDelta;
+}
+
+// ─── Baseline & delta ─────────────────────────────────────────────────────────
+
+export interface BaselineCheckEntry {
+  id: string;
+  score: number;
+  maxScore: number;
+  evidenceCount: number;
+}
+
+export interface BaselineDimensionEntry {
+  dimension: Dimension;
+  score: number;
+  ceiling: number;
+}
+
+/** Persisted snapshot written to .racoon-baseline.json after each scan. */
+export interface BaselineData {
+  version: 1;
+  timestamp: string;
+  overallScore: number;
+  overallCeiling: number;
+  dimensions: BaselineDimensionEntry[];
+  checks: BaselineCheckEntry[];
+}
+
+/** Per-check change between the current scan and the stored baseline. */
+export interface CheckDelta {
+  checkId: string;
+  checkName: string;
+  dimension: Dimension;
+  previousScore: number;
+  currentScore: number;
+  /** Negative = regression, positive = improvement. */
+  delta: number;
+  /** Net new evidence items compared to baseline (positive = more issues found). */
+  newEvidenceCount: number;
+}
+
+/** Attached to ScanReport when a baseline exists. */
+export interface ScanDelta {
+  scoreDelta: number;
+  ceilingDelta: number;
+  previousScore: number;
+  previousCeiling: number;
+  baselineTimestamp: string;
+  /** Checks whose score dropped by more than the noise threshold. */
+  regressions: CheckDelta[];
+  /** Checks whose score improved by more than the noise threshold. */
+  improvements: CheckDelta[];
+  /** Number of checks with no meaningful change. */
+  unchanged: number;
 }
 
 // ─── Config ──────────────────────────────────────────────────────────────────

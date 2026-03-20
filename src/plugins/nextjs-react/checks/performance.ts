@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Check, Dimension, EvidenceItem, Finding, ScanContext } from '../../../core/types.js';
 import { classifyFile, mergePathRules, NEXTJS_REACT_PATH_RULES } from '../../../core/path-classifier.js';
+import { readSanitizedFile } from '../../../core/sanitizer.js';
 
 function readFile(context: ScanContext, rel: string): string {
   if (context.fileCache.has(rel)) return context.fileCache.get(rel)!;
@@ -42,14 +43,15 @@ export const nextImageCheck: Check = {
       const { weight, label } = classifyFile(file, rules);
       if (weight === 0) continue;
 
-      const content = readFile(context, file);
-      const lines = content.split('\n');
+      const origLines = readFile(context, file).split('\n');
+      const safe = readSanitizedFile(context, file);
+      const safeLines = safe.split('\n');
 
-      nextImageImports += (content.match(/from\s+['"]next\/image['"]/g) ?? []).length;
+      nextImageImports += (safe.match(/from\s+['"]next\/image['"]/g) ?? []).length;
 
-      for (let i = 0; i < lines.length; i++) {
-        if (/<img\s/i.test(lines[i])) {
-          evidence.push({ file, line: i + 1, snippet: snip(lines[i]), weight, label });
+      for (let i = 0; i < safeLines.length; i++) {
+        if (/<img\s/i.test(safeLines[i])) {
+          evidence.push({ file, line: i + 1, snippet: snip(origLines[i] ?? ''), weight, label });
         }
       }
     }

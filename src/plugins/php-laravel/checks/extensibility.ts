@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Check, Dimension, EvidenceItem, Finding, ScanContext } from '../../../core/types.js';
 import { classifyFile, mergePathRules, PHP_LARAVEL_PATH_RULES } from '../../../core/path-classifier.js';
+import { readSanitizedFile } from '../../../core/sanitizer.js';
 
 function readFile(context: ScanContext, rel: string): string {
   if (context.fileCache.has(rel)) return context.fileCache.get(rel)!;
@@ -117,17 +118,17 @@ export const configUsageCheck: Check = {
       const { weight, label } = classifyFile(file, rules);
       if (weight === 0) continue;
 
-      const content = readFile(context, file);
-      const lines = content.split('\n');
+      const origLines = readFile(context, file).split('\n');
+      const safeLines = readSanitizedFile(context, file).split('\n');
 
-      for (let i = 0; i < lines.length; i++) {
-        const hasUrl = urlPattern.test(lines[i]);
-        const hasIp  = ipPattern.test(lines[i]);
+      for (let i = 0; i < safeLines.length; i++) {
+        const hasUrl = urlPattern.test(safeLines[i]);
+        const hasIp  = ipPattern.test(safeLines[i]);
 
         if (hasUrl || hasIp) {
           if (hasUrl) hardCodedUrls++;
           if (hasIp)  hardCodedIps++;
-          evidence.push({ file, line: i + 1, snippet: snip(lines[i]), weight, label });
+          evidence.push({ file, line: i + 1, snippet: snip(origLines[i] ?? ''), weight, label });
         }
       }
     }

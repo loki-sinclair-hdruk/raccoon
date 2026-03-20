@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { Check, Dimension, EvidenceItem, Finding, ScanContext } from '../../../core/types.js';
+import { readSanitizedFile } from '../../../core/sanitizer.js';
 
 function readFile(context: ScanContext, rel: string): string {
   if (context.fileCache.has(rel)) return context.fileCache.get(rel)!;
@@ -119,20 +120,20 @@ export const separationOfConcernsCheck: Check = {
     let heavyControllers = 0;
 
     for (const file of controllerFiles) {
-      const content = readFile(context, file);
-      const dbCalls = (content.match(dbCallPattern) ?? []).length;
+      const safe = readSanitizedFile(context, file);
+      const dbCalls = (safe.match(dbCallPattern) ?? []).length;
 
       if (dbCalls > 10) {
         heavyControllers++;
 
-        // Find and record the first direct DB call line as evidence anchor
-        const lines = content.split('\n');
-        for (let i = 0; i < lines.length; i++) {
-          if (/DB::|->where\(|->create\(|->update\(|->delete\(/.test(lines[i])) {
+        const origLines = readFile(context, file).split('\n');
+        const safeLines = safe.split('\n');
+        for (let i = 0; i < safeLines.length; i++) {
+          if (/DB::|->where\(|->create\(|->update\(|->delete\(/.test(safeLines[i])) {
             evidence.push({
               file,
               line: i + 1,
-              snippet: `${snip(lines[i])}  [${dbCalls} total DB calls in file]`,
+              snippet: `${snip(origLines[i] ?? '')}  [${dbCalls} total DB calls in file]`,
               weight: 1.5,
               label: 'controller',
             });

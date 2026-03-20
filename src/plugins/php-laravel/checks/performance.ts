@@ -12,6 +12,7 @@ import {
   mergePathRules,
   PHP_LARAVEL_PATH_RULES,
 } from '../../../core/path-classifier.js';
+import { readSanitizedFile } from '../../../core/sanitizer.js';
 
 function readFile(context: ScanContext, rel: string): string {
   if (context.fileCache.has(rel)) return context.fileCache.get(rel)!;
@@ -56,30 +57,29 @@ export const nPlusOneCheck: Check = {
       const { weight, label } = classifyFile(file, rules);
       if (weight === 0) continue; // excluded (tests, factories, seeders)
 
-      const content = readFile(context, file);
-      if (!content) continue;
-      const lines = content.split('\n');
+      const origLines = readFile(context, file).split('\n');
+      const safeLines = readSanitizedFile(context, file).split('\n');
+      if (!origLines.length) continue;
 
-      for (let i = 0; i < lines.length; i++) {
-        if (!lines[i].match(/\b(foreach|for)\s*\(/)) continue;
+      for (let i = 0; i < safeLines.length; i++) {
+        if (!safeLines[i].match(/\b(foreach|for)\s*\(/)) continue;
 
-        const windowLines = lines.slice(i + 1, i + 11);
-        for (let j = 0; j < windowLines.length; j++) {
-          const inner = windowLines[j];
+        const windowSafe = safeLines.slice(i + 1, i + 11);
+        for (let j = 0; j < windowSafe.length; j++) {
           if (
-            queryPattern.test(inner) ||
-            dbFacadePattern.test(inner) ||
-            relationTraversalPattern.test(inner)
+            queryPattern.test(windowSafe[j]) ||
+            dbFacadePattern.test(windowSafe[j]) ||
+            relationTraversalPattern.test(windowSafe[j])
           ) {
             weightedHits += weight;
             evidence.push({
               file,
               line: i + 2 + j,
-              snippet: snip(inner),
+              snippet: snip(origLines[i + 1 + j] ?? ''),
               weight,
               label,
             });
-            break; // one hit per loop block
+            break;
           }
         }
       }
@@ -133,20 +133,22 @@ export const cacheUsageCheck: Check = {
 
       const content = readFile(context, file);
       if (!content) continue;
+      const safe = readSanitizedFile(context, file);
 
-      if (cachePattern.test(content)) {
+      if (cachePattern.test(safe)) {
         cacheUsageCount++;
         continue;
       }
 
       // No cache in this file — flag the first heavy query line as a candidate
-      const lines = content.split('\n');
-      for (let i = 0; i < lines.length; i++) {
-        if (heavyQueryPattern.test(lines[i])) {
+      const origLines = content.split('\n');
+      const safeLines = safe.split('\n');
+      for (let i = 0; i < safeLines.length; i++) {
+        if (heavyQueryPattern.test(safeLines[i])) {
           evidence.push({
             file,
             line: i + 1,
-            snippet: snip(lines[i]),
+            snippet: snip(origLines[i]),
             weight,
             label,
           });
@@ -205,25 +207,26 @@ export const eagerLoadingCheck: Check = {
       const { weight, label } = classifyFile(file, rules);
       if (weight === 0) continue;
 
-      const content = readFile(context, file);
-      if (!content) continue;
+      const origLines = readFile(context, file).split('\n');
+      const safe = readSanitizedFile(context, file);
+      if (!safe) continue;
+      const safeLines = safe.split('\n');
 
       const fileWithCount =
-        (content.match(/->with\s*\(/g) ?? []).length +
-        (content.match(/::with\s*\(/g) ?? []).length;
+        (safe.match(/->with\s*\(/g) ?? []).length +
+        (safe.match(/::with\s*\(/g) ?? []).length;
       withCount += fileWithCount;
 
-      const fileUsesEager = eagerPattern.test(content);
-      const lines = content.split('\n');
+      const fileUsesEager = eagerPattern.test(safe);
 
-      for (let i = 0; i < lines.length; i++) {
-        if (relationLinePattern.test(lines[i])) {
+      for (let i = 0; i < safeLines.length; i++) {
+        if (relationLinePattern.test(safeLines[i])) {
           relationCallCount++;
           if (!fileUsesEager) {
             evidence.push({
               file,
               line: i + 1,
-              snippet: snip(lines[i]),
+              snippet: snip(origLines[i] ?? ''),
               weight,
               label,
             });

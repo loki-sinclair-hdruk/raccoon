@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Check, Dimension, EvidenceItem, Finding, ScanContext } from '../../../core/types.js';
 import { classifyFile, mergePathRules, NEXTJS_REACT_PATH_RULES } from '../../../core/path-classifier.js';
+import { readSanitizedFile } from '../../../core/sanitizer.js';
 
 function readFile(context: ScanContext, rel: string): string {
   if (context.fileCache.has(rel)) return context.fileCache.get(rel)!;
@@ -51,12 +52,12 @@ export const xssRiskCheck: Check = {
       const { weight, label } = classifyFile(file, rules);
       if (weight === 0) continue;
 
-      const content = readFile(context, file);
-      const lines = content.split('\n');
+      const origLines = readFile(context, file).split('\n');
+      const safeLines = readSanitizedFile(context, file).split('\n');
 
-      for (let i = 0; i < lines.length; i++) {
-        if (lines[i].includes('dangerouslySetInnerHTML')) {
-          evidence.push({ file, line: i + 1, snippet: snip(lines[i]), weight, label });
+      for (let i = 0; i < safeLines.length; i++) {
+        if (safeLines[i].includes('dangerouslySetInnerHTML')) {
+          evidence.push({ file, line: i + 1, snippet: snip(origLines[i] ?? ''), weight, label });
         }
       }
     }
@@ -94,12 +95,12 @@ export const evalUsageCheck: Check = {
       const { weight, label } = classifyFile(file, rules);
       if (weight === 0) continue;
 
-      const content = readFile(context, file);
-      const lines = content.split('\n');
+      const origLines = readFile(context, file).split('\n');
+      const safeLines = readSanitizedFile(context, file).split('\n');
 
-      for (let i = 0; i < lines.length; i++) {
-        if (lines[i].match(/\beval\s*\(/) || lines[i].match(/new\s+Function\s*\(/)) {
-          evidence.push({ file, line: i + 1, snippet: snip(lines[i]), weight, label });
+      for (let i = 0; i < safeLines.length; i++) {
+        if (safeLines[i].match(/\beval\s*\(/) || safeLines[i].match(/new\s+Function\s*\(/)) {
+          evidence.push({ file, line: i + 1, snippet: snip(origLines[i] ?? ''), weight, label });
         }
       }
     }
@@ -145,16 +146,16 @@ export const hardcodedSecretsCheck: Check = {
       const { weight, label } = classifyFile(file, rules);
       if (weight === 0) continue;
 
-      const content = readFile(context, file);
-      const lines = content.split('\n');
+      const origLines = readFile(context, file).split('\n');
+      const safeLines = readSanitizedFile(context, file).split('\n');
 
-      for (let i = 0; i < lines.length; i++) {
+      for (let i = 0; i < safeLines.length; i++) {
         for (const pattern of secretPatterns) {
-          if (pattern.test(lines[i])) {
+          if (pattern.test(safeLines[i])) {
             evidence.push({
               file,
               line: i + 1,
-              snippet: snip(redact(lines[i])),
+              snippet: snip(redact(origLines[i] ?? '')),
               weight,
               label,
             });
@@ -183,6 +184,29 @@ export const hardcodedSecretsCheck: Check = {
 
 // ─── Check: Next.js security headers ─────────────────────────────────────────
 
+const SECURITY_HEADERS: Array<{ needle: string; description: string }> = [
+  {
+    needle: 'Content-Security-Policy',
+    description: 'prevents XSS and injection attacks by whitelisting trusted content sources',
+  },
+  {
+    needle: 'Strict-Transport-Security',
+    description: 'forces HTTPS connections, preventing protocol-downgrade and MITM attacks',
+  },
+  {
+    needle: 'X-Frame-Options',
+    description: 'blocks clickjacking by controlling whether the page can be embedded in an iframe',
+  },
+  {
+    needle: 'X-Content-Type-Options',
+    description: 'prevents MIME-type sniffing, stopping browsers from misinterpreting file types',
+  },
+  {
+    needle: 'Referrer-Policy',
+    description: 'controls how much referrer information is sent with requests, protecting user privacy',
+  },
+];
+
 export const securityHeadersCheck: Check = {
   id: 'nextjs-react/security-headers',
   name: 'Security Headers',
@@ -199,26 +223,34 @@ export const securityHeadersCheck: Check = {
     }
 
     const content = readFile(context, nextConfigFile);
-    const headers = {
-      csp:        content.includes('Content-Security-Policy'),
-      hsts:       content.includes('Strict-Transport-Security'),
-      xFrame:     content.includes('X-Frame-Options'),
-      xContent:   content.includes('X-Content-Type-Options'),
-      referrer:   content.includes('Referrer-Policy'),
-      hasHeaders: content.includes('headers()') || content.includes('headers:'),
-    };
+    const hasHeadersBlock = content.includes('headers()') || content.includes('headers:');
 
-    const definedCount = Object.values(headers).filter(Boolean).length;
-    const score = Math.round((definedCount / 6) * 100);
+    const missing: EvidenceItem[] = [];
+    let foundCount = 0;
+
+    for (const h of SECURITY_HEADERS) {
+      if (content.includes(h.needle)) {
+        foundCount++;
+      } else {
+        missing.push({
+          file: nextConfigFile,
+          line: 1,
+          snippet: `${h.needle.padEnd(28)} — ${h.description}`,
+        });
+      }
+    }
+
+    const score = Math.round((foundCount / SECURITY_HEADERS.length) * 100);
 
     return {
-      message: headers.hasHeaders
-        ? `Security headers configured (${definedCount - 1}/5 key headers found)`
-        : 'No security headers found in next.config',
+      message: hasHeadersBlock
+        ? `Security headers configured (${foundCount}/${SECURITY_HEADERS.length} key headers found)`
+        : `No security headers found in next.config (${foundCount}/${SECURITY_HEADERS.length} headers missing)`,
       score,
       maxScore: 100,
-      severity: !headers.hasHeaders ? 'warning' : 'info',
-      detail: headers,
+      severity: foundCount < 3 ? 'warning' : 'info',
+      evidence: missing,
+      detail: { foundCount, total: SECURITY_HEADERS.length },
     };
   },
 };

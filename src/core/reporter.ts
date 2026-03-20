@@ -159,6 +159,57 @@ function reportTerminal(r: ScanReport): void {
     console.log('');
   }
 
+  // Delta — changes since last scan
+  if (r.delta) {
+    const d = r.delta;
+    const ts = new Date(d.baselineTimestamp).toLocaleString();
+    console.log(hr);
+    console.log('');
+
+    const scoreArrow = d.scoreDelta > 0
+      ? chalk.green(`▲ +${d.scoreDelta} pts`)
+      : d.scoreDelta < 0
+        ? chalk.red(`▼ ${d.scoreDelta} pts`)
+        : chalk.gray('no change');
+
+    console.log(
+      `  ${chalk.bold('Changes since last scan')}  ${chalk.gray(`(${ts})`)}`,
+    );
+    console.log(
+      `  Overall: ${chalk.white(`${d.previousScore}`)} → ${chalk.white(`${r.overallScore}`)}  ${scoreArrow}`,
+    );
+    console.log('');
+
+    if (d.regressions.length > 0) {
+      console.log(chalk.bold.red(`  Regressions (${d.regressions.length})`));
+      for (const c of d.regressions) {
+        const newEvidence = c.newEvidenceCount > 0
+          ? chalk.gray(`  +${c.newEvidenceCount} new location${c.newEvidenceCount > 1 ? 's' : ''}`)
+          : '';
+        console.log(
+          `  ${chalk.red('✖')} ${chalk.gray(`[${dimensionLabel(c.dimension)}]`)}  ` +
+          `${chalk.white(c.checkName.padEnd(28))}` +
+          `${chalk.gray(`${c.previousScore}`)} → ${chalk.red(`${c.currentScore}`)}` +
+          `  ${chalk.red(`(${c.delta})`)}${newEvidence}`,
+        );
+      }
+      console.log('');
+    }
+
+    if (d.improvements.length > 0) {
+      console.log(chalk.bold.green(`  Improvements (${d.improvements.length})`));
+      for (const c of d.improvements) {
+        console.log(
+          `  ${chalk.green('▲')} ${chalk.gray(`[${dimensionLabel(c.dimension)}]`)}  ` +
+          `${chalk.white(c.checkName.padEnd(28))}` +
+          `${chalk.gray(`${c.previousScore}`)} → ${chalk.green(`${c.currentScore}`)}` +
+          `  ${chalk.green(`(+${c.delta})`)}`,
+        );
+      }
+      console.log('');
+    }
+  }
+
   console.log(hr);
   console.log('');
 }

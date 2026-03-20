@@ -6,6 +6,7 @@ import { PluginRegistry } from './registry.js';
 import { detectStacks } from './detector.js';
 import { ScoringEngine } from './scorer.js';
 import { ScanReport } from './types.js';
+import { loadBaseline, saveBaseline, computeDelta } from './baseline.js';
 
 export interface ScanOptions {
   projectRoot: string;
@@ -63,6 +64,13 @@ export class Scanner {
       durationMs: Date.now() - start,
     });
 
+    // 6. Baseline delta — load previous snapshot, compute diff, save new one
+    const baseline = loadBaseline(absRoot);
+    if (baseline) {
+      report.delta = computeDelta(report, baseline);
+    }
+    saveBaseline(absRoot, report);
+
     return report;
   }
 
@@ -96,6 +104,7 @@ export class Scanner {
       projectRoot,
       stacks,
       fileCache: new Map(),
+      sanitizedFileCache: new Map(),
       files,
       config,
     };
