@@ -3,18 +3,68 @@
 **Extensible codebase quality scanner.** Scores projects across 8 engineering dimensions and tells you exactly what lifts your score and what holds it back.
 
 ```
-  ████████████████████████░░░░░░░░░░░░░░░◆  62/100  ceiling: 84/100  D
+  🦝  RACOON — Codebase Quality Report
+  ────────────────────────────────────────────────────────────────────
+  Project : /home/dev/my-api
+  Stacks  : php-laravel
+  Scanned : 2.4s
+
+  ┌──────────────────────┬──────────────────┬──────────┬───────────────────────┐
+  │ Dimension            │ Score            │ Ceiling  │ Status                │
+  ├──────────────────────┼──────────────────┼──────────┼───────────────────────┤
+  │ Security             │ 92/100  [S]      │ 95/100   │ ✓ Strong              │
+  │ Readability          │ 78/100  [B]      │ 90/100   │ △ Improvable (2 gaps) │
+  │ Maintainability      │ 62/100  [C]      │ 85/100   │ △ Improvable (3 gaps) │
+  │ Test Coverage        │ 45/100  [D]      │ 80/100   │ ✖ Critical gaps (2)   │
+  │ Extensibility        │ 70/100  [B]      │ 80/100   │ △ Improvable (1 gap)  │
+  │ Performance          │ 55/100  [D]      │ 75/100   │ ▼ Holds back (3 gaps) │
+  │ Documentation        │ 80/100  [A]      │ 90/100   │ ▲ Lifts score         │
+  │ Architecture         │ 88/100  [A]      │ 92/100   │ ▲ Lifts score         │
+  └──────────────────────┴──────────────────┴──────────┴───────────────────────┘
+
+  ████████████████████████░░░░░░░░░░░░░◆  71/100  B  Solid  ·  9 pts to A
 
   What lifts your score
   ▲ [Security] No hardcoded secrets detected
-  ▲ [Maintainability] 94% of source files are TypeScript
+  ▲ [Architecture] MVC structure in place — controllers, models, routes present
+  ▲ [Documentation] README.md present with key sections
 
   Documented gaps — what holds you back
-  ✖ [Test Coverage] 0 test files for 47 source files (−100 pts)
-  ▼ [Architecture] Both app/ and pages/ directories found — mixed routing (−50 pts)
-  ▼ [Documentation] No README.md found (−100 pts)
+  ✖ [Test Coverage] 3/28 critical-path files have a corresponding test (−80 pts)
+     ↳ app/Http/Controllers/Api/UserController.php:1  [controller]  class UserController
+     ↳ app/Services/PaymentService.php:1             [service]     class PaymentService
+     ↳ app/Jobs/SendInvoiceJob.php:1                 [job]         class SendInvoiceJob
+     ↳ +14 more
+  ▼ [Performance] 8 potential N+1 patterns found (weighted impact: 12.4) (−60 pts)
+     ↳ app/Http/Controllers/Api/OrderController.php:87  [controller]  foreach ($orders as $order) {
+     ↳ app/Jobs/SyncProductsJob.php:44                  [job]         $product->variants()->get();
+  ▼ [Maintainability] 4/11 controllers exceed 300 code lines (avg 340) (−30 pts)
+     ↳ app/Http/Controllers/Api/ReportController.php:1  [controller]  class ReportController [348 lines]
 
-  Closing identified gaps could raise your score by up to +22 pts → 84/100
+  Closing identified gaps could raise your score by up to +19 pts → 90/100
+
+  ────────────────────────────────────────────────────────────────────
+
+  Achievements  (3 earned)
+
+  ★ Security Champion        🛡  Security dimension scored 90+        ← new!
+  · Solid Architecture       🏛  Architecture scored 80+
+  · No Critical Gaps         🔒  Zero critical-severity findings
+
+  ────────────────────────────────────────────────────────────────────
+
+  Changes since last scan  (19/03/2026, 14:22:11)
+  Overall: 65 → 71  ▲ +6 pts
+
+  Improvements (3)
+  ▲ [Security]         Hardcoded Secrets           0 → 100  (+100)
+  ▲ [Architecture]     Separation of Concerns      50 → 80  (+30)
+  ▲ [Documentation]    README Coverage             60 → 80  (+20)
+
+  Regressions (1)
+  ✖ [Performance]      N+1 Query Patterns          80 → 40  (−40)  +3 new locations
+
+  ────────────────────────────────────────────────────────────────────
 ```
 
 ---
@@ -161,23 +211,33 @@ Place a `.racoon.json` file in the root of the project being scanned:
 
 ## Baseline tracking
 
-After each scan, Racoon writes a `.racoon-baseline.json` snapshot to the scanned project root. On subsequent scans, it diffs the new results against this snapshot and appends a delta section to the report:
-
-```
-  Changes since last scan  (21/03/2026, 09:14:32)
-  Overall: 58 → 62  ▲ +4 pts
-
-  Improvements (2)
-  ▲ [Security]         Hardcoded Secrets           0 → 25  (+25)
-  ▲ [Test Coverage]    Test File Ratio             40 → 55  (+15)
-
-  Regressions (1)
-  ✖ [Performance]      Next.js Image Optimisation  80 → 20  (−60)
-```
+After each scan, Racoon writes a `.racoon-baseline.json` snapshot to the scanned project root. On subsequent scans, it diffs the new results against this snapshot and appends a delta section to the report showing regressions and improvements per check.
 
 Changes smaller than ±3 points are treated as noise and suppressed.
 
+The baseline also tracks your consecutive improvement streak, which feeds into streak-based achievements.
+
 Commit `.racoon-baseline.json` to track score trends over time, or add it to `.gitignore` to keep it local.
+
+---
+
+## Achievements
+
+Racoon awards achievements as you improve your codebase. They're shown at the end of each scan, with newly unlocked ones highlighted. Earned achievements persist in `.racoon-baseline.json`.
+
+| Achievement | Condition |
+|-------------|-----------|
+| Security Champion | Security dimension scored 90+ |
+| Test Enthusiast | Test Coverage scored 80+ |
+| Well Documented | Documentation scored 80+ |
+| Solid Architecture | Architecture scored 80+ |
+| Perfectionist | Any single dimension scored 100 |
+| Clean Sweep | All dimensions scored 70+ |
+| No Critical Gaps | Zero critical-severity findings |
+| S-Tier Codebase | Overall score reached 90+ |
+| Regression Free | No regressions since last scan |
+| Most Improved | Score improved 10+ points in one scan |
+| On a Roll | 3 consecutive scans with improvement |
 
 ---
 
@@ -189,7 +249,7 @@ Commit `.racoon-baseline.json` to track score trends over time, or add it to `.g
 |-----------|----------|-------------------|
 | Readability | `php-laravel/method-length` | Methods exceeding 30 lines |
 | Readability | `php-laravel/naming-conventions` | PascalCase classes, camelCase methods |
-| Maintainability | `php-laravel/controller-bloat` | Controller methods exceeding 30 code lines (comments/annotations stripped) — signals business logic in controller layer |
+| Maintainability | `php-laravel/controller-bloat` | Controllers exceeding 300 code lines (comments and annotations stripped) — signals business logic in the controller layer |
 | Maintainability | `php-laravel/service-layer` | Service classes relative to controllers |
 | Maintainability | `php-laravel/cyclomatic-complexity` | Decision points per function (proxy) |
 | Extensibility | `php-laravel/interface-usage` | Interface / contract definitions |
@@ -203,7 +263,7 @@ Commit `.racoon-baseline.json` to track score trends over time, or add it to `.g
 | Security | `php-laravel/sql-injection` | Raw SQL with variable interpolation |
 | Security | `php-laravel/env-exposure` | `.env` committed or unguarded in `.gitignore` |
 | Security | `php-laravel/mass-assignment` | Eloquent models without `$fillable`/`$guarded` |
-| Performance | `php-laravel/n-plus-one` | Query calls inside loops |
+| Performance | `php-laravel/n-plus-one` | Query calls inside loops (test files excluded) |
 | Performance | `php-laravel/cache-usage` | `Cache::` / `Redis::` usage |
 | Performance | `php-laravel/eager-loading` | `->with()` vs relationship definition ratio |
 | Documentation | `php-laravel/readme` | README presence and key sections |
@@ -232,7 +292,7 @@ Commit `.racoon-baseline.json` to track score trends over time, or add it to `.g
 | Security | `nextjs-react/xss-risk` | `dangerouslySetInnerHTML` usage |
 | Security | `nextjs-react/eval-usage` | `eval()` / `new Function()` calls |
 | Security | `nextjs-react/hardcoded-secrets` | API key / token literals |
-| Security | `nextjs-react/security-headers` | CSP, HSTS, X-Frame-Options in `next.config` |
+| Security | `nextjs-react/security-headers` | CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy in `next.config` — missing headers are listed with a description of what each one protects |
 | Performance | `nextjs-react/next-image` | `next/image` vs raw `<img>` ratio |
 | Performance | `nextjs-react/code-splitting` | Dynamic imports and `React.lazy()` |
 | Performance | `nextjs-react/memoization` | `React.memo`, `useMemo`, `useCallback` usage |
@@ -270,9 +330,10 @@ export const myCheck: Check = {
   weight: 2,
 
   async run(context: ScanContext): Promise<Finding> {
-    // context.files    — all project file paths
-    // context.fileCache — lazy-populated content cache
-    // context.projectRoot — absolute path
+    // context.files         — all project file paths
+    // context.fileCache     — lazy-populated raw content cache (use for snippets)
+    // context.sanitizedFileCache — comments/strings stripped (use for pattern matching)
+    // context.projectRoot   — absolute path
     return {
       message: 'Everything looks fine',
       score: 100,
@@ -311,16 +372,16 @@ That's it. No core changes required.
 
 ## Score interpretation
 
-| Score | Grade | Meaning |
-|-------|-------|---------|
-| 90–100 | A | Excellent — a well-maintained, production-grade codebase |
-| 80–89 | B | Good — a few gaps but fundamentally solid |
-| 70–79 | C | Acceptable — meaningful improvement areas exist |
-| 60–69 | D | Needs work — several dimensions are under-invested |
-| 40–59 | E | Significant gaps — reliability and security risk |
-| 0–39 | F | Critical — foundational issues need urgent attention |
+| Score | Tier | Rating |
+|-------|------|--------|
+| 90–100 | S | Exceptional — production-grade, actively maintained codebase |
+| 80–89 | A | Strong — fundamentally solid with minor gaps |
+| 70–79 | B | Solid — meaningful improvement areas exist |
+| 60–69 | C | Developing — several dimensions are under-invested |
+| 40–59 | D | Needs Attention — reliability and security risk |
+| 0–39  | E | Critical — foundational issues need urgent attention |
 
-The **ceiling score** represents the realistic best-case score if every identified gap were resolved. A large gap between your current score and ceiling means the issues found are high-impact and worth prioritising.
+Each dimension is independently tiered in the report table. The **ceiling score** represents the realistic best-case if every identified gap were resolved — a large gap between your score and ceiling means the issues found are high-impact and worth prioritising.
 
 ---
 
@@ -339,5 +400,4 @@ npm run dev        # run via ts-node (no build step)
 - [ ] HTML report output
 - [ ] Additional stacks: Ruby on Rails, Django, Go
 - [ ] Git diff mode (score only changed files)
-- [ ] Trend tracking (score over time via CI artefacts)
 - [ ] Custom check authoring via `.racoon.json`
