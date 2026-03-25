@@ -3,7 +3,7 @@ import {
   Dimension,
   DimensionResult,
   Finding,
-  RacoonConfig,
+  RaccoonConfig,
   ScanReport,
   Stack,
 } from './types.js';
@@ -13,7 +13,7 @@ interface ScoreInput {
   projectRoot: string;
   stacks: Stack[];
   results: Array<{ check: Check; finding: Finding }>;
-  config: RacoonConfig;
+  config: RaccoonConfig;
   durationMs: number;
 }
 

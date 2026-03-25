@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { glob } from 'glob';
-import { Check, RacoonConfig, ScanContext, Stack } from './types.js';
+import { Check, RaccoonConfig, ScanContext, Stack } from './types.js';
 import { PluginRegistry } from './registry.js';
 import { detectStacks } from './detector.js';
 import { ScoringEngine } from './scorer.js';
@@ -11,7 +11,7 @@ import { computeAchievements } from './achievements.js';
 
 export interface ScanOptions {
   projectRoot: string;
-  config?: RacoonConfig;
+  config?: RaccoonConfig;
   /** Restrict to specific stacks instead of auto-detecting. */
   forceStacks?: Stack[];
   /** Verbose logging to stderr during scan. */
@@ -35,9 +35,9 @@ export class Scanner {
     const activeStacks = forceStacks ?? stacks;
 
     if (verbose) {
-      console.error(`[racoon] Detected stacks: ${activeStacks.join(', ')}`);
+      console.error(`[raccoon] Detected stacks: ${activeStacks.join(', ')}`);
       for (const stack of activeStacks) {
-        console.error(`[racoon]   ${stack}: ${evidence[stack].join(', ')}`);
+        console.error(`[raccoon]   ${stack}: ${evidence[stack].join(', ')}`);
       }
     }
 
@@ -47,7 +47,7 @@ export class Scanner {
     );
 
     if (verbose) {
-      console.error(`[racoon] Running ${checks.length} checks...`);
+      console.error(`[raccoon] Running ${checks.length} checks...`);
     }
 
     // 3. Build scan context
@@ -86,7 +86,7 @@ export class Scanner {
   private async buildContext(
     projectRoot: string,
     stacks: Stack[],
-    config: RacoonConfig,
+    config: RaccoonConfig,
   ): Promise<ScanContext> {
     // Enumerate all files, excluding common noise dirs
     const patterns = ['**/*'];
@@ -130,13 +130,13 @@ export class Scanner {
           const finding = await check.run(context);
           if (verbose) {
             console.error(
-              `[racoon]   ✓ ${check.id} → ${finding.score}/${finding.maxScore}`,
+              `[raccoon]   ✓ ${check.id} → ${finding.score}/${finding.maxScore}`,
             );
           }
           return { check, finding };
         } catch (err) {
           if (verbose) {
-            console.error(`[racoon]   ✗ ${check.id} threw: ${String(err)}`);
+            console.error(`[raccoon]   ✗ ${check.id} threw: ${String(err)}`);
           }
           // Failed check doesn't crash the scan — it scores 0
           return {

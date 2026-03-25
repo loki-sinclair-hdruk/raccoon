@@ -89,7 +89,7 @@ function reportTerminal(r: ScanReport): void {
 
   // Header
   console.log('');
-  console.log(chalk.bold.white('  🦝  RACOON — Codebase Quality Report'));
+  console.log(chalk.bold.white('  🦝  RACCOON — Codebase Quality Report'));
   console.log(hr);
   console.log(chalk.gray(`  Project : ${r.projectRoot}`));
   console.log(chalk.gray(`  Stacks  : ${r.stacks.join(', ')}`));

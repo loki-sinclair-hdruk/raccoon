@@ -1,5 +1,5 @@
 /**
- * Core type definitions for Racoon — the extensible codebase quality scanner.
+ * Core type definitions for Raccoon — the extensible codebase quality scanner.
  *
  * Data flow:
  *   Check.run() → Finding
@@ -47,8 +47,8 @@ export interface ScanContext {
   sanitizedFileCache: Map<string, string>;
   /** Resolved list of all project file paths (relative to projectRoot). */
   files: string[];
-  /** Optional config loaded from .racoon.json in the project root. */
-  config: RacoonConfig;
+  /** Optional config loaded from .raccoon.json in the project root. */
+  config: RaccoonConfig;
 }
 
 // ─── Findings ─────────────────────────────────────────────────────────────────
@@ -154,7 +154,7 @@ export interface ScanReport {
   /** Top findings that are holding the score back. */
   weaknesses: Array<{ check: Check; finding: Finding; dimension: Dimension }>;
   durationMs: number;
-  /** Populated when a .racoon-baseline.json exists from a previous scan. */
+  /** Populated when a .raccoon-baseline.json exists from a previous scan. */
   delta?: ScanDelta;
   /** Achievements earned by this scan. */
   achievements?: EarnedAchievement[];
@@ -175,7 +175,7 @@ export interface BaselineDimensionEntry {
   ceiling: number;
 }
 
-/** Persisted snapshot written to .racoon-baseline.json after each scan. */
+/** Persisted snapshot written to .raccoon-baseline.json after each scan. */
 export interface BaselineData {
   version: 1;
   timestamp: string;
@@ -224,7 +224,7 @@ export interface DimensionWeight {
   weight: number;
 }
 
-export interface RacoonConfig {
+export interface RaccoonConfig {
   /** Override dimension weights. Must sum to 1.0 if all provided. */
   dimensionWeights?: Partial<Record<Dimension, number>>;
   /** Check IDs to skip entirely. */

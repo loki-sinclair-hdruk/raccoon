@@ -1,8 +1,8 @@
 /**
- * Baseline tracking — persists a scan result snapshot to .racoon-baseline.json
+ * Baseline tracking — persists a scan result snapshot to .raccoon-baseline.json
  * so subsequent scans can report regressions and improvements.
  *
- * The baseline file lives in the scanned project root (not Racoon's own dir),
+ * The baseline file lives in the scanned project root (not Raccoon's own dir),
  * so teams can optionally commit it to track score trends over time, or add it
  * to .gitignore to keep it local.
  */
@@ -18,7 +18,7 @@ import {
   ScanReport,
 } from './types.js';
 
-const BASELINE_FILE = '.racoon-baseline.json';
+const BASELINE_FILE = '.raccoon-baseline.json';
 
 /** Minimum score change required to count as a regression or improvement. */
 const NOISE_THRESHOLD = 3;

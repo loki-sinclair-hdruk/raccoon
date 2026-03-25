@@ -2,7 +2,7 @@
  * Path classification for scan checks.
  *
  * Rules are evaluated in order — first match wins. Checks declare which rule
- * set to use, and `.racoon.json` pathRules are prepended (highest priority).
+ * set to use, and `.raccoon.json` pathRules are prepended (highest priority).
  *
  * weight = 0   → excluded entirely (never appears in evidence or score)
  * weight < 1   → reduced impact (fractional contribution to score penalty)
@@ -110,7 +110,7 @@ export function classifyFile(filePath: string, rules: PathRule[]): FileClassific
 }
 
 /**
- * Merge user-supplied rules (from .racoon.json) with a default set.
+ * Merge user-supplied rules (from .raccoon.json) with a default set.
  * User rules are prepended so they take priority.
  */
 export function mergePathRules(

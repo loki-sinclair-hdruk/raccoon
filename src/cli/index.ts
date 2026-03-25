@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { Scanner } from '../core/scanner.js';
 import { report, OutputFormat } from '../core/reporter.js';
-import { RacoonConfig, Stack } from '../core/types.js';
+import { RaccoonConfig, Stack } from '../core/types.js';
 
 // ── Register plugins (side-effect imports) ────────────────────────────────────
 import '../plugins/php-laravel/index.js';
@@ -15,7 +15,7 @@ import '../plugins/nextjs-react/index.js';
 const program = new Command();
 
 program
-  .name('racoon')
+  .name('raccoon')
   .description('Extensible codebase quality scanner — scores projects across 8 engineering dimensions')
   .version('0.1.0');
 
@@ -35,19 +35,19 @@ program
       process.exit(1);
     }
 
-    // Load .racoon.json config if present
-    let fileConfig: RacoonConfig = {};
-    const configPath = path.join(projectRoot, '.racoon.json');
+    // Load .raccoon.json config if present
+    let fileConfig: RaccoonConfig = {};
+    const configPath = path.join(projectRoot, '.raccoon.json');
     if (fs.existsSync(configPath)) {
       try {
-        fileConfig = JSON.parse(fs.readFileSync(configPath, 'utf8')) as RacoonConfig;
+        fileConfig = JSON.parse(fs.readFileSync(configPath, 'utf8')) as RaccoonConfig;
       } catch {
-        console.error(`Warning: could not parse .racoon.json — using defaults`);
+        console.error(`Warning: could not parse .raccoon.json — using defaults`);
       }
     }
 
     // CLI options take precedence over file config
-    const config: RacoonConfig = {
+    const config: RaccoonConfig = {
       ...fileConfig,
       outputFormat: (opts.format as OutputFormat) ?? fileConfig.outputFormat ?? 'terminal',
       skip: [

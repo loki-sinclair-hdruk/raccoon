@@ -4,7 +4,7 @@
   "description": "Extensible codebase quality scanner — scores projects across 8 engineering dimensions",
   "main": "dist/cli/index.js",
   "bin": {
-    "racoon": "dist/cli/index.js"
+    "raccoon": "dist/cli/index.js"
   },
   "scripts": {
     "build": "tsc",

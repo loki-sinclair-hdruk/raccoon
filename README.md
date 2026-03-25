@@ -82,7 +82,7 @@
 | Documentation | 10% | READMEs, inline docs, and developer-facing guidance |
 | Architecture | 10% | Separation of concerns, layering, and conventions |
 
-Weights are configurable per-project via `.racoon.json`.
+Weights are configurable per-project via `.raccoon.json`.
 
 ---
 
