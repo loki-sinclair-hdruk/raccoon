@@ -1,9 +1,9 @@
-# 🦝 Racoon
+# 🦝 Raccoon
 
 **Extensible codebase quality scanner.** Scores projects across 8 engineering dimensions and tells you exactly what lifts your score and what holds it back.
 
 ```
-  🦝  RACOON — Codebase Quality Report
+  🦝  RACCOON — Codebase Quality Report
   ────────────────────────────────────────────────────────────────────
   Project : /home/dev/my-api
   Stacks  : php-laravel
@@ -101,8 +101,8 @@ Stacks are auto-detected. Multiple stacks may be active simultaneously (e.g. a m
 
 ```bash
 # Clone and build
-git clone https://github.com/your-org/racoon.git
-cd racoon
+git clone https://github.com/your-org/raccoon.git
+cd raccoon
 npm install
 npm run build
 
@@ -119,43 +119,43 @@ npm link
 ### Basic scan
 
 ```bash
-racoon scan ./path/to/project
+raccoon scan ./path/to/project
 ```
 
 ### Force a specific stack
 
 ```bash
-racoon scan ./my-api --stack php-laravel
-racoon scan ./my-frontend --stack nextjs-react
+raccoon scan ./my-api --stack php-laravel
+raccoon scan ./my-frontend --stack nextjs-react
 
 # Multiple stacks (monorepo)
-racoon scan . --stack php-laravel,nextjs-react
+raccoon scan . --stack php-laravel,nextjs-react
 ```
 
 ### JSON output (for CI/CD)
 
 ```bash
-racoon scan ./my-project --format json
-racoon scan ./my-project --format json | jq '.overallScore'
+raccoon scan ./my-project --format json
+raccoon scan ./my-project --format json | jq '.overallScore'
 ```
 
 ### Fail under a threshold (CI/CD exit code)
 
 ```bash
-racoon scan ./my-project --fail-under 70
+raccoon scan ./my-project --fail-under 70
 # exits with code 1 if overall score < 70
 ```
 
 ### Skip specific checks
 
 ```bash
-racoon scan ./my-project --skip php-laravel/n-plus-one,php-laravel/cache-usage
+raccoon scan ./my-project --skip php-laravel/n-plus-one,php-laravel/cache-usage
 ```
 
 ### Verbose mode
 
 ```bash
-racoon scan ./my-project --verbose
+raccoon scan ./my-project --verbose
 ```
 
 ---
@@ -165,27 +165,27 @@ racoon scan ./my-project --verbose
 ```yaml
 - name: Scan codebase quality
   run: |
-    npx racoon scan . --format json --fail-under 60
+    npx raccoon scan . --format json --fail-under 60
 ```
 
 Or capture the full report as an artifact:
 
 ```yaml
-- name: Racoon quality scan
-  run: npx racoon scan . --format json > racoon-report.json
+- name: Raccoon quality scan
+  run: npx raccoon scan . --format json > raccoon-report.json
 
 - name: Upload report
   uses: actions/upload-artifact@v4
   with:
-    name: racoon-report
-    path: racoon-report.json
+    name: raccoon-report
+    path: raccoon-report.json
 ```
 
 ---
 
 ## Per-project configuration
 
-Place a `.racoon.json` file in the root of the project being scanned:
+Place a `.raccoon.json` file in the root of the project being scanned:
 
 ```json
 {
@@ -211,19 +211,19 @@ Place a `.racoon.json` file in the root of the project being scanned:
 
 ## Baseline tracking
 
-After each scan, Racoon writes a `.racoon-baseline.json` snapshot to the scanned project root. On subsequent scans, it diffs the new results against this snapshot and appends a delta section to the report showing regressions and improvements per check.
+After each scan, Raccoon writes a `.raccoon-baseline.json` snapshot to the scanned project root. On subsequent scans, it diffs the new results against this snapshot and appends a delta section to the report showing regressions and improvements per check.
 
 Changes smaller than ±3 points are treated as noise and suppressed.
 
 The baseline also tracks your consecutive improvement streak, which feeds into streak-based achievements.
 
-Commit `.racoon-baseline.json` to track score trends over time, or add it to `.gitignore` to keep it local.
+Commit `.raccoon-baseline.json` to track score trends over time, or add it to `.gitignore` to keep it local.
 
 ---
 
 ## Achievements
 
-Racoon awards achievements as you improve your codebase. They're shown at the end of each scan, with newly unlocked ones highlighted. Earned achievements persist in `.racoon-baseline.json`.
+Raccoon awards achievements as you improve your codebase. They're shown at the end of each scan, with newly unlocked ones highlighted. Earned achievements persist in `.raccoon-baseline.json`.
 
 | Achievement | Condition |
 |-------------|-----------|
@@ -305,7 +305,7 @@ Racoon awards achievements as you improve your codebase. They're shown at the en
 
 ---
 
-## Extending Racoon
+## Extending Raccoon
 
 Adding support for a new stack (e.g. Django, Ruby on Rails) takes three steps:
 
@@ -400,4 +400,4 @@ npm run dev        # run via ts-node (no build step)
 - [ ] HTML report output
 - [ ] Additional stacks: Ruby on Rails, Django, Go
 - [ ] Git diff mode (score only changed files)
-- [ ] Custom check authoring via `.racoon.json`
+- [ ] Custom check authoring via `.raccoon.json`
