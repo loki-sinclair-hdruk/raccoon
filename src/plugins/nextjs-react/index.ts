@@ -2,7 +2,7 @@ import { Plugin, Stack } from '../../core/types.js';
 import { PluginRegistry } from '../../core/registry.js';
 
 import { eslintConfigCheck, componentSizeCheck }             from './checks/readability.js';
-import { typescriptCheck, customHookCheck, propTypesCheck }  from './checks/maintainability.js';
+import { typescriptCheck, customHookCheck, propTypesCheck, duplicateCodeCheck } from './checks/maintainability.js';
 import { fileStructureCheck, envVarUsageCheck, apiAbstractionCheck } from './checks/extensibility.js';
 import { testFrameworkCheck, testFileRatioCheck, assertionDensityCheck, coverageConfigCheck } from './checks/test-coverage.js';
 import { xssRiskCheck, evalUsageCheck, hardcodedSecretsCheck, securityHeadersCheck } from './checks/security.js';
@@ -21,6 +21,7 @@ const nextjsReactPlugin: Plugin = {
     typescriptCheck,
     customHookCheck,
     propTypesCheck,
+    duplicateCodeCheck,
     // Extensibility
     fileStructureCheck,
     envVarUsageCheck,

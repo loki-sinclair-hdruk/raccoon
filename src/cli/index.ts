@@ -3,7 +3,7 @@ import { Command } from 'commander';
 import * as path from 'path';
 import * as fs from 'fs';
 import { Scanner } from '../core/scanner.js';
-import { report, OutputFormat } from '../core/reporter.js';
+import { report, writeGithubSummary, OutputFormat } from '../core/reporter.js';
 import { RaccoonConfig, Stack } from '../core/types.js';
 
 // ── Register plugins (side-effect imports) ────────────────────────────────────
@@ -27,6 +27,10 @@ program
   .option('--stack <stacks>', 'Force specific stacks (comma-separated): php-laravel,nextjs-react')
   .option('--skip <checks>', 'Comma-separated check IDs to skip')
   .option('--fail-under <score>', 'Exit with code 1 if overall score is below this threshold')
+  .option(
+    '--github-summary [file]',
+    'Write a GitHub-flavored Markdown summary (default: $GITHUB_STEP_SUMMARY)',
+  )
   .action(async (directory: string | undefined, opts) => {
     const projectRoot = path.resolve(directory ?? '.');
 
@@ -70,6 +74,21 @@ program
     try {
       const result = await scanner.scan();
       report(result, config.outputFormat as OutputFormat ?? 'terminal');
+
+      // GitHub summary
+      if (opts.githubSummary !== undefined) {
+        const summaryPath =
+          typeof opts.githubSummary === 'string'
+            ? opts.githubSummary
+            : process.env['GITHUB_STEP_SUMMARY'];
+        if (!summaryPath) {
+          console.error(
+            'Warning: --github-summary requires a file path or $GITHUB_STEP_SUMMARY to be set',
+          );
+        } else {
+          writeGithubSummary(result, summaryPath);
+        }
+      }
 
       // CI/CD exit code support
       if (opts.failUnder !== undefined) {

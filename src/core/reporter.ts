@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import Table from 'cli-table3';
+import * as fs from 'fs';
 import { DimensionResult, ScanReport } from './types.js';
 import { dimensionLabel, DIMENSIONS } from '../dimensions/index.js';
 
@@ -139,32 +140,34 @@ function reportTerminal(r: ScanReport): void {
     console.log('');
   }
 
-  // Weaknesses / gaps
-  if (r.weaknesses.length > 0) {
-    console.log(chalk.bold.yellow('  Documented gaps — what holds you back'));
-    for (const { finding, dimension } of r.weaknesses) {
-      const gap = finding.maxScore - finding.score;
-      const icon = finding.severity === 'critical' ? chalk.red('✖') : chalk.yellow('▼');
+  // Gaps — full report, grouped by dimension
+  const dimensionsWithGaps = orderedDimensions.filter((dr) => dr.gaps.length > 0);
+  if (dimensionsWithGaps.length > 0) {
+    console.log(chalk.bold.yellow('  Gaps — what holds you back'));
+    for (const dr of dimensionsWithGaps) {
+      console.log('');
       console.log(
-        `  ${icon} ${chalk.gray(`[${dimensionLabel(dimension)}]`)} ${finding.message} ${chalk.gray(`(−${gap} pts)`)}`,
+        `  ${chalk.bold.white(dimensionLabel(dr.dimension))}  ${chalk.gray(`(${dr.gaps.length} gap${dr.gaps.length !== 1 ? 's' : ''})`)}`,
       );
-      if (finding.evidence && finding.evidence.length > 0) {
-        const shown = finding.evidence.slice(0, 5);
-        for (const e of shown) {
-          const loc = chalk.cyan(`${e.file}:${e.line}`);
-          const labelTag = e.label ? chalk.magenta(`[${e.label}]`) + '  ' : '';
-          const dim = (e.weight ?? 1) < 1;
-          const code = dim ? chalk.gray(e.snippet) : chalk.white(e.snippet);
-          console.log(`     ${chalk.gray('↳')} ${loc}  ${labelTag}${code}`);
-        }
-        if (finding.evidence.length > 5) {
-          console.log(`     ${chalk.gray(`↳ +${finding.evidence.length - 5} more`)}`);
-        }
-      } else if (finding.files && finding.files.length > 0) {
-        const shown = finding.files.slice(0, 3);
+      for (const { check, finding } of dr.gaps) {
+        const gap = finding.maxScore - finding.score;
+        const icon = finding.severity === 'critical' ? chalk.red('✖') : chalk.yellow('▼');
         console.log(
-          `     ${chalk.gray('↳ ' + shown.join(', ') + (finding.files.length > 3 ? ` +${finding.files.length - 3} more` : ''))}`,
+          `  ${icon} ${chalk.white(check.name)}  ${finding.message}  ${chalk.gray(`(−${gap} pts)`)}`,
         );
+        if (finding.evidence && finding.evidence.length > 0) {
+          for (const e of finding.evidence) {
+            const loc = chalk.cyan(`${e.file}:${e.line}`);
+            const labelTag = e.label ? chalk.magenta(`[${e.label}]`) + '  ' : '';
+            const faded = (e.weight ?? 1) < 1;
+            const code = faded ? chalk.gray(e.snippet) : chalk.white(e.snippet);
+            console.log(`     ${chalk.gray('↳')} ${loc}  ${labelTag}${code}`);
+          }
+        } else if (finding.files && finding.files.length > 0) {
+          for (const f of finding.files) {
+            console.log(`     ${chalk.gray('↳')} ${chalk.gray(f)}`);
+          }
+        }
       }
     }
     console.log('');
@@ -255,6 +258,127 @@ function reportTerminal(r: ScanReport): void {
 
   console.log(hr);
   console.log('');
+}
+
+// ─── GitHub summary ──────────────────────────────────────────────────────────
+
+export function writeGithubSummary(r: ScanReport, outputPath: string): void {
+  const tier = getTier(r.overallScore);
+  const orderedDimensions = DIMENSIONS
+    .map((meta) => r.dimensions.find((d) => d.dimension === meta.dimension))
+    .filter((d): d is DimensionResult => d !== undefined);
+
+  const lines: string[] = [];
+
+  // Header
+  lines.push(`## 🦝 Raccoon — Codebase Quality Report`);
+  lines.push(``);
+  lines.push(
+    `**Score: ${r.overallScore}/100** &nbsp;·&nbsp; **${tier.label} — ${tier.name}** &nbsp;·&nbsp; Ceiling: ${r.overallCeiling}/100 &nbsp;·&nbsp; Scanned in ${(r.durationMs / 1000).toFixed(1)}s`,
+  );
+  lines.push(``);
+
+  // Dimension table
+  lines.push(`### Dimension Scores`);
+  lines.push(``);
+  lines.push(`| Dimension | Score | Ceiling | Gaps |`);
+  lines.push(`|:----------|------:|--------:|-----:|`);
+  for (const dr of orderedDimensions) {
+    const dimTier = getTier(dr.score);
+    const gapCount = dr.gaps.length;
+    const gapCell = gapCount === 0 ? '✅ None' : `⚠️ ${gapCount}`;
+    lines.push(
+      `| ${dimensionLabel(dr.dimension)} | **${dr.score}/100** (${dimTier.label}) | ${dr.ceiling}/100 | ${gapCell} |`,
+    );
+  }
+  lines.push(``);
+
+  // Strengths
+  if (r.strengths.length > 0) {
+    lines.push(`### ✅ What Lifts Your Score`);
+    lines.push(``);
+    for (const { check, finding, dimension } of r.strengths) {
+      lines.push(`- **[${dimensionLabel(dimension)}] ${check.name}** — ${finding.message}`);
+    }
+    lines.push(``);
+  }
+
+  // Gaps — one collapsible section per dimension
+  const dimensionsWithGaps = orderedDimensions.filter((dr) => dr.gaps.length > 0);
+  if (dimensionsWithGaps.length > 0) {
+    lines.push(`### ⚠️ Gaps`);
+    lines.push(``);
+    for (const dr of dimensionsWithGaps) {
+      const dimTier = getTier(dr.score);
+      lines.push(
+        `<details><summary><strong>${dimensionLabel(dr.dimension)}</strong> — ${dr.score}/100 (${dimTier.label}) &nbsp;·&nbsp; ${dr.gaps.length} gap${dr.gaps.length !== 1 ? 's' : ''}</summary>`,
+      );
+      lines.push(``);
+      for (const { check, finding } of dr.gaps) {
+        const gap = finding.maxScore - finding.score;
+        const icon = finding.severity === 'critical' ? '🔴' : '🟡';
+        lines.push(`#### ${icon} ${check.name} — ${finding.message} (−${gap} pts)`);
+        lines.push(``);
+        if (finding.evidence && finding.evidence.length > 0) {
+          lines.push(`| File | Line | Snippet |`);
+          lines.push(`|------|-----:|---------|`);
+          for (const e of finding.evidence) {
+            const label = e.label ? ` \`[${e.label}]\`` : '';
+            lines.push(`| \`${e.file}\` | ${e.line} |${label} \`${e.snippet.replace(/`/g, "'")}\` |`);
+          }
+          lines.push(``);
+        } else if (finding.files && finding.files.length > 0) {
+          for (const f of finding.files) {
+            lines.push(`- \`${f}\``);
+          }
+          lines.push(``);
+        }
+      }
+      lines.push(`</details>`);
+      lines.push(``);
+    }
+  }
+
+  // Achievements
+  if (r.achievements && r.achievements.length > 0) {
+    lines.push(`### 🏆 Achievements`);
+    lines.push(``);
+    for (const a of r.achievements) {
+      const badge = a.isNew ? ' **← new!**' : '';
+      lines.push(`- ${a.icon} **${a.name}** — ${a.description}${badge}`);
+    }
+    lines.push(``);
+  }
+
+  // Delta
+  if (r.delta) {
+    const d = r.delta;
+    const ts = new Date(d.baselineTimestamp).toLocaleString();
+    const arrow = d.scoreDelta > 0 ? `▲ +${d.scoreDelta}` : d.scoreDelta < 0 ? `▼ ${d.scoreDelta}` : 'no change';
+    lines.push(`### 📈 Changes since last scan (${ts})`);
+    lines.push(``);
+    lines.push(`Overall: **${d.previousScore}** → **${r.overallScore}** (${arrow} pts)`);
+    lines.push(``);
+    if (d.regressions.length > 0) {
+      lines.push(`**Regressions**`);
+      for (const c of d.regressions) {
+        lines.push(`- 🔴 [${dimensionLabel(c.dimension)}] **${c.checkName}** ${c.previousScore} → ${c.currentScore} (${c.delta} pts)`);
+      }
+      lines.push(``);
+    }
+    if (d.improvements.length > 0) {
+      lines.push(`**Improvements**`);
+      for (const c of d.improvements) {
+        lines.push(`- ✅ [${dimensionLabel(c.dimension)}] **${c.checkName}** ${c.previousScore} → ${c.currentScore} (+${c.delta} pts)`);
+      }
+      lines.push(``);
+    }
+  }
+
+  lines.push(`---`);
+  lines.push(`*Generated by [Raccoon](https://github.com/HDRUK/raccoon)*`);
+
+  fs.writeFileSync(outputPath, lines.join('\n'), 'utf8');
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

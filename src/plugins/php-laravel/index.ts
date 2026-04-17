@@ -2,7 +2,7 @@ import { Plugin, Stack } from '../../core/types.js';
 import { PluginRegistry } from '../../core/registry.js';
 
 import { methodLengthCheck, namingConventionsCheck }         from './checks/readability.js';
-import { controllerBloatCheck, serviceLayerCheck, cyclomaticComplexityCheck } from './checks/maintainability.js';
+import { controllerBloatCheck, serviceLayerCheck, cyclomaticComplexityCheck, duplicateCodeCheck } from './checks/maintainability.js';
 import { interfaceUsageCheck, repositoryPatternCheck, configUsageCheck }      from './checks/extensibility.js';
 import { testFrameworkCheck, testFileRatioCheck, assertionDensityCheck, testTypeBalanceCheck } from './checks/test-coverage.js';
 import { hardcodedSecretsCheck, sqlInjectionCheck, envExposureCheck, massAssignmentCheck } from './checks/security.js';
@@ -21,6 +21,7 @@ const phpLaravelPlugin: Plugin = {
     controllerBloatCheck,
     serviceLayerCheck,
     cyclomaticComplexityCheck,
+    duplicateCodeCheck,
     // Extensibility
     interfaceUsageCheck,
     repositoryPatternCheck,

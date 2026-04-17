@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { createHash } from 'crypto';
 import { Check, Dimension, EvidenceItem, Finding, ScanContext } from '../../../core/types.js';
 import { classifyFile, mergePathRules, NEXTJS_REACT_PATH_RULES } from '../../../core/path-classifier.js';
 
@@ -17,6 +18,33 @@ function readFile(context: ScanContext, rel: string): string {
 function snip(line: string, maxLen = 80): string {
   const t = line.trim();
   return t.length > maxLen ? t.slice(0, maxLen - 1) + '…' : t;
+}
+
+// ─── Duplicate code helpers ───────────────────────────────────────────────────
+
+const DUP_WINDOW = 6;   // consecutive meaningful lines per chunk
+const DUP_MIN_LEN = 15; // min trimmed line length to be considered meaningful
+
+/** Extract sliding-window hashes from a file's meaningful lines. */
+function extractChunks(content: string): Map<string, number> {
+  const meaningful: Array<{ text: string; lineNum: number }> = [];
+
+  content.split('\n').forEach((line, i) => {
+    const t = line.trim();
+    if (t.length < DUP_MIN_LEN) return;
+    // Skip import / re-export lines — they appear in every file
+    if (/^import\s/.test(t) && /\bfrom\b/.test(t)) return;
+    if (/^export\s*\{[^}]*\}\s*from/.test(t)) return;
+    meaningful.push({ text: t, lineNum: i + 1 });
+  });
+
+  const chunks = new Map<string, number>(); // hash -> first line number
+  for (let i = 0; i <= meaningful.length - DUP_WINDOW; i++) {
+    const window = meaningful.slice(i, i + DUP_WINDOW).map((l) => l.text).join('\n');
+    const hash = createHash('md5').update(window).digest('hex');
+    if (!chunks.has(hash)) chunks.set(hash, meaningful[i].lineNum);
+  }
+  return chunks;
 }
 
 // ─── Check: TypeScript usage ──────────────────────────────────────────────────
@@ -162,6 +190,83 @@ export const propTypesCheck: Check = {
       severity: ratio < 0.5 ? 'warning' : 'info',
       files: [...new Set(evidence.map((e) => e.file))],
       evidence: evidence.slice(0, 10),
+    };
+  },
+};
+
+// ─── Check: Duplicate code blocks ─────────────────────────────────────────────
+
+export const duplicateCodeCheck: Check = {
+  id: 'nextjs-react/duplicate-code',
+  name: 'Duplicate Code',
+  dimension: Dimension.Maintainability,
+  weight: 2,
+
+  async run(context: ScanContext): Promise<Finding> {
+    const sourceFiles = context.files.filter(
+      (f) =>
+        f.match(/\.(ts|tsx|js|jsx)$/) &&
+        !f.includes('node_modules') &&
+        !f.match(/\.(test|spec)\.(ts|tsx|js|jsx)$/) &&
+        !f.match(/\.(config|stories)\.(ts|tsx|js|jsx)$/),
+    );
+
+    if (sourceFiles.length < 2) {
+      return { message: 'Not enough source files to detect duplication', score: 80, maxScore: 100, severity: 'info' };
+    }
+
+    // hash -> all occurrences across files
+    const blockMap = new Map<string, Array<{ file: string; line: number }>>();
+
+    for (const file of sourceFiles) {
+      const content = readFile(context, file);
+      for (const [hash, line] of extractChunks(content)) {
+        if (!blockMap.has(hash)) blockMap.set(hash, []);
+        blockMap.get(hash)!.push({ file, line });
+      }
+    }
+
+    // Keep only blocks that appear in 2+ distinct files
+    const duplicateBlocks: Array<{ occurrences: Array<{ file: string; line: number }> }> = [];
+    for (const occurrences of blockMap.values()) {
+      const uniqueFiles = [...new Set(occurrences.map((o) => o.file))];
+      if (uniqueFiles.length < 2) continue;
+      // One representative occurrence per file
+      duplicateBlocks.push({
+        occurrences: uniqueFiles.map((f) => occurrences.find((o) => o.file === f)!),
+      });
+    }
+
+    duplicateBlocks.sort((a, b) => b.occurrences.length - a.occurrences.length);
+
+    const affectedFiles = new Set<string>();
+    for (const { occurrences } of duplicateBlocks) {
+      for (const { file } of occurrences) affectedFiles.add(file);
+    }
+
+    const evidence: EvidenceItem[] = duplicateBlocks.slice(0, 10).map(({ occurrences }) => {
+      const first = occurrences[0];
+      const lines = readFile(context, first.file).split('\n');
+      return {
+        file: first.file,
+        line: first.line,
+        snippet: `${snip(lines[first.line - 1] ?? '')}  [duplicated in ${occurrences.length - 1} other file(s)]`,
+      };
+    });
+
+    const ratio = affectedFiles.size / sourceFiles.length;
+    const score = Math.round(Math.max(0, 100 - ratio * 200));
+
+    return {
+      message: duplicateBlocks.length === 0
+        ? `No duplicate code blocks found across ${sourceFiles.length} source files`
+        : `${duplicateBlocks.length} duplicate block(s) across ${affectedFiles.size}/${sourceFiles.length} source files`,
+      score,
+      maxScore: 100,
+      severity: ratio > 0.3 ? 'warning' : 'info',
+      files: [...affectedFiles].slice(0, 10),
+      evidence,
+      detail: { duplicateBlocks: duplicateBlocks.length, affectedFiles: affectedFiles.size, totalFiles: sourceFiles.length },
     };
   },
 };
